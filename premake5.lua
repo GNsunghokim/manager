@@ -19,9 +19,9 @@ workspace "Penguin"
         targetname "manager"
         targetdir "."
         files { "src/**.h", "src/**.c" }
-        includedirs { "../penguin/include", "../penguin/include/ipv4" }
-        libdirs { "." }
-        links { "umpn", "rt" }
+        includedirs { "../penguin/include", "../penguin/include/ipv4", "./lib/include" }
+        libdirs { ".", "./lib" }
+        links { "umpn", "pn_assistant", "rt" }
 
         -- Make version header 
         prebuildcommands {

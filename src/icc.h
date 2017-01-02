@@ -43,6 +43,8 @@ typedef struct _ICC_Message {
 			size_t*	stderr_head;
 			size_t*	stderr_tail;
 			size_t	stderr_size;
+
+			uint32_t	global_heap_idx;
 		} started;
 		
 		struct {

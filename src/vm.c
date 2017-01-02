@@ -9,6 +9,9 @@
 #include <net/md5.h>
 #include <timer.h>
 #include <file.h>
+
+#include <pn_assistant.h>
+
 #include "icc.h"
 #include "vm.h"
 #include "apic.h"
@@ -73,6 +76,9 @@ static void icc_started(ICC_Message* msg) {
 		core->stderr_size = msg->data.started.stderr_size;
 		
 		core->status = VM_STATUS_START;
+
+		if(!vm->global_heap_idx)
+			vm->global_heap_idx = msg->data.started.global_heap_idx;
 		
 		printf("Execution succeed on core[%d].\n", mp_apic_id_to_core_id(msg->apic_id));
 		
@@ -381,7 +387,8 @@ static bool vm_loop(void* context) {
 }
 
 void vm_init() {
-	vms = map_create(4, map_uint64_hash, map_uint64_equals, NULL);
+	//vms = map_create(4, map_uint64_hash, map_uint64_equals, NULL);
+	vms = map_create(4, NULL, NULL, NULL);
 	
 	icc_register(ICC_TYPE_STARTED, icc_started);
 	icc_register(ICC_TYPE_PAUSED, icc_paused);
@@ -398,6 +405,8 @@ void vm_init() {
 	}
 
 	event_idle_add(vm_loop, NULL);
+
+	pn_assistant_set_vms(vms);
 }
 
 uint32_t vm_create(VMSpec* vm_spec) {

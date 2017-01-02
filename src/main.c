@@ -7,6 +7,9 @@
 #include <fcntl.h>
 #include <util/event.h>
 #include <timer.h>
+
+#include <pn_assistant.h>
+
 #include "apic.h"
 #include "icc.h"
 #include "mapping.h"
@@ -458,6 +461,10 @@ int main(int argc, char** argv) {
 	printf("\nInitializing shared memory area...\n");
 	if(shared_init() < 0)
 		goto error;
+
+	if(!pn_assistant_init()) {
+		goto error;
+	}
 
 	printf("\nInitializing malloc area...\n");
 	malloc_init();

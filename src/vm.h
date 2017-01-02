@@ -36,7 +36,9 @@ typedef struct _VM {
 	char**		argv;	// gmalloc
 
 	int		status;
-} VM;
+
+	uint32_t	global_heap_idx;
+} __attribute__ ((packed)) VM;
 
 void vm_init();
 void vm_init();

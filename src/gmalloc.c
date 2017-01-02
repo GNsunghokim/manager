@@ -6,6 +6,9 @@
 #include "shared.h"
 #include <util/list.h>
 #include <malloc.h>
+
+#include <pn_assistant.h>
+
 #include "smap.h"
 #include "idt.h"
 
@@ -13,6 +16,8 @@ uint32_t bmalloc_count;
 uint64_t* bmalloc_pool;
 
 void gmalloc_init() {
+	pn_assistant_set_physical_offset(PHYSICAL_OFFSET);
+
 	/* Gmalloc pool area : IDT_END_ADDR */
 	uint64_t start = VIRTUAL_TO_PHYSICAL(IDT_END_ADDR);
 	uint64_t end = VIRTUAL_TO_PHYSICAL((uint64_t)shared);
