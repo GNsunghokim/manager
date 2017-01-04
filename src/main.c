@@ -100,13 +100,13 @@ static int parse_present_mask(char* present_mask) {
 	char* start = strtok_r(next, "-", &end);
 
 	if(start) {
-		cpu_start = strtol(start, NULL, 16);
+		cpu_start = strtol(start, NULL, 10);
 		cpu_end = cpu_start;
 	} else
 		return -1;
 
 	if(*end) {
-		cpu_end = strtol(end, NULL, 16);
+		cpu_end = strtol(end, NULL, 10);
 		if(cpu_start > cpu_end)
 			return -2;
 	}
