@@ -1,14 +1,14 @@
 #ifndef __PN_ASSISTANT_H__
 #define __PN_ASSISTANT_H__
 
-#include <util/map.h>
+#include <util/shmmap.h>
 #include "../../src/vm.h"
 
 // API for Manager
 bool pn_assistant_init();	//O_RDWR
 void* pn_assistant_get_pool();
 ssize_t pn_assistant_get_pool_size();
-bool pn_assistant_set_vms(Map* vms);
+bool pn_assistant_set_vms(Shmmap* vms);
 bool pn_assistant_set_physical_offset(uint64_t PHYSICAL_OFFSET);
 
 // API for Application

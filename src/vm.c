@@ -4,7 +4,7 @@
 #include <malloc.h>
 #include <util/event.h>
 #include <errno.h>
-#include <util/map.h>
+#include <util/shmmap.h>
 #include <util/ring.h>
 #include <net/md5.h>
 #include <timer.h>
@@ -23,7 +23,7 @@
 
 static uint32_t	last_vmid = 1;
 // FIXME: change to static
-Map*	vms;
+Shmmap*	vms;
 
 // Core status
 typedef struct {
@@ -388,7 +388,7 @@ static bool vm_loop(void* context) {
 
 void vm_init() {
 	//vms = map_create(4, map_uint64_hash, map_uint64_equals, NULL);
-	vms = map_create(4, NULL, NULL, NULL);
+	vms = shmmap_create(4, SHMMAP_HASH_TYPE_UINT64, SHMMAP_EQUALS_TYPE_UINT64, NULL);
 	
 	icc_register(ICC_TYPE_STARTED, icc_started);
 	icc_register(ICC_TYPE_PAUSED, icc_paused);
@@ -487,9 +487,9 @@ uint32_t vm_create(VMSpec* vm_spec) {
 	while(true) {
 		vmid = last_vmid++;
 
-		if(vmid != 0 && !map_contains(vms, (void*)(uint64_t)vmid)) {
+		if(vmid != 0 && !shmmap_contains(vms, (void*)(uint64_t)vmid)) {
 			vm->id = vmid;
-			map_put(vms, (void*)(uint64_t)vmid, vm);
+			shmmap_put(vms, (void*)(uint64_t)vmid, vm);
 			break;
 		}
 	}
@@ -509,7 +509,7 @@ uint32_t vm_create(VMSpec* vm_spec) {
 			} while(vnic_contains(nics[i].dev, mac));
 		} else if(vnic_contains(nics[i].dev, mac)) {
 			printf("Manager: The mac address already in use: %012lx.\n", mac);
-			map_remove(vms, (void*)(uint64_t)vmid);
+			shmmap_remove(vms, (void*)(uint64_t)vmid);
 			vm_delete(vm, -1);
 			return 0;
 		}
@@ -533,7 +533,7 @@ uint32_t vm_create(VMSpec* vm_spec) {
 		vm->nics[i] = vnic_create(attrs);
 		if(!vm->nics[i]) {
 			printf("Manager: Not enough VNIC to allocate: errno=%d.\n", errno);
-			map_remove(vms, (void*)(uint64_t)vmid);
+			shmmap_remove(vms, (void*)(uint64_t)vmid);
 			vm_delete(vm, -1);
 			return 0;
 		}
@@ -576,7 +576,7 @@ uint32_t vm_create(VMSpec* vm_spec) {
 }
 
 bool vm_destroy(uint32_t vmid) {
-	VM* vm = map_get(vms, (void*)(uint64_t)vmid);
+	VM* vm = shmmap_get(vms, (void*)(uint64_t)vmid);
 	if(!vm) {
 		printf("Manager: Vm not found\n");
 		return false;
@@ -587,7 +587,7 @@ bool vm_destroy(uint32_t vmid) {
 		}
 	}
 	
-	map_remove(vms, (void*)(uint64_t)vmid);
+	shmmap_remove(vms, (void*)(uint64_t)vmid);
 	
 	printf("Manager: Delete vm[%d] on cores [", vmid);
 	for(int i = 0; i < vm->core_size; i++) {
@@ -603,20 +603,20 @@ bool vm_destroy(uint32_t vmid) {
 }
 
 bool vm_contains(uint32_t vmid) {
-	return map_contains(vms, (void*)(uint64_t)vmid);
+	return shmmap_contains(vms, (void*)(uint64_t)vmid);
 }
 
 int vm_count() {
-	return map_size(vms);
+	return shmmap_size(vms);
 }
 
 int vm_list(uint32_t* vmids, int size) {
 	int i = 0;
 	
-	MapIterator iter;
-	map_iterator_init(&iter, vms);
-	while(i < size && map_iterator_has_next(&iter)) {
-		MapEntry* entry = map_iterator_next(&iter);
+	ShmmapIterator iter;
+	shmmap_iterator_init(&iter, vms);
+	while(i < size && shmmap_iterator_has_next(&iter)) {
+		ShmmapEntry* entry = shmmap_iterator_next(&iter);
 		vmids[i++] = (uint32_t)(uint64_t)entry->key;
 	}
 	
@@ -658,7 +658,7 @@ static bool status_changed(uint64_t event_type, void* event, void* context) {
 }
 
 void vm_status_set(uint32_t vmid, int status, VM_STATUS_CALLBACK callback, void* context) {
-	VM* vm = map_get(vms, (void*)(uint64_t)vmid);
+	VM* vm = shmmap_get(vms, (void*)(uint64_t)vmid);
 	if(!vm) {
 		callback(false, context);
 		return;
@@ -738,7 +738,7 @@ void vm_status_set(uint32_t vmid, int status, VM_STATUS_CALLBACK callback, void*
 }
 
 int vm_status_get(uint32_t vmid) {
-	VM* vm = map_get(vms, (void*)(uint64_t)vmid);
+	VM* vm = shmmap_get(vms, (void*)(uint64_t)vmid);
 	if(!vm)
 		return -1;
 	
@@ -746,7 +746,7 @@ int vm_status_get(uint32_t vmid) {
 }
 
 VM* vm_get(uint32_t vmid) {
-	VM* vm = map_get(vms, (void*)(uint64_t)vmid);
+	VM* vm = shmmap_get(vms, (void*)(uint64_t)vmid);
 	if(!vm)
 		return NULL;
 	
@@ -754,7 +754,7 @@ VM* vm_get(uint32_t vmid) {
 }
 
 ssize_t vm_storage_read(uint32_t vmid, void** buf, size_t offset, size_t size) {
-	VM* vm = map_get(vms, (void*)(uint64_t)vmid);
+	VM* vm = shmmap_get(vms, (void*)(uint64_t)vmid);
 	if(!vm)
 		return -1;
 
@@ -774,7 +774,7 @@ ssize_t vm_storage_read(uint32_t vmid, void** buf, size_t offset, size_t size) {
 }
 
 ssize_t vm_storage_write(uint32_t vmid, void* buf, size_t offset, size_t size) {
-	VM* vm = map_get(vms, (void*)(uint64_t)vmid);
+	VM* vm = shmmap_get(vms, (void*)(uint64_t)vmid);
 	if(!vm)
 		return -1;
 
@@ -813,7 +813,7 @@ ssize_t vm_storage_write(uint32_t vmid, void* buf, size_t offset, size_t size) {
 }
 
 ssize_t vm_storage_clear(uint32_t vmid) {
-	VM* vm = map_get(vms, (void*)(uint64_t)vmid);
+	VM* vm = shmmap_get(vms, (void*)(uint64_t)vmid);
 	if(!vm)
 		return -1;
 	
@@ -827,7 +827,7 @@ ssize_t vm_storage_clear(uint32_t vmid) {
 }
 
 bool vm_storage_md5(uint32_t vmid, uint32_t size, uint32_t digest[4]) {
-	VM* vm = map_get(vms, (void*)(uint64_t)vmid);
+	VM* vm = shmmap_get(vms, (void*)(uint64_t)vmid);
 	if(!vm)
 		return false;
 	
@@ -841,7 +841,7 @@ bool vm_storage_md5(uint32_t vmid, uint32_t size, uint32_t digest[4]) {
 }
 
 ssize_t vm_stdio(uint32_t vmid, int thread_id, int fd, const char* str, size_t size) {
-	VM* vm = map_get(vms, (void*)(uint64_t)vmid);
+	VM* vm = shmmap_get(vms, (void*)(uint64_t)vmid);
 	if(!vm)
 		return -1;
 	

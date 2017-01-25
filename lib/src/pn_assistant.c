@@ -10,7 +10,7 @@
 
 typedef struct _Manager_Data {
 	uint64_t PHYSICAL_OFFSET;
-	Map* vms;
+	Shmmap* vms;
 } __attribute__ ((packed)) Manager_Data;
 
 typedef struct _PN_Assistant {
@@ -57,7 +57,7 @@ ssize_t pn_assistant_get_pool_size() {
 	return pn_assistant->pool_size;
 }
 
-bool pn_assistant_set_vms(Map* vms) {
+bool pn_assistant_set_vms(Shmmap* vms) {
 	if(!pn_assistant)
 		return false;
 
@@ -124,7 +124,7 @@ static VM* pn_assistant_get_vm(int vmid) {
 	if(!pn_assistant)
 		return NULL;
 
-	VM* vm = map_get(pn_assistant->manager_data.vms, (void*)(uint64_t)vmid);
+	VM* vm = shmmap_get(pn_assistant->manager_data.vms, (void*)(uint64_t)vmid);
 	if(!vm)
 		return NULL;
 
