@@ -444,13 +444,6 @@ int main(int argc, char** argv) {
 	if(ret)
 		return ret;
 
-	printf("\nCopying kernel image...\n");
-	ret = elf_copy(kernel_elf, kernel_start_address);
-	if(ret) {
-		printf("\tFailed to copy kernel image by kexec\n");
-		return ret;
-	}
-
 	printf("\nInitiliazing mmap symbols...\n");
 	ret = symbols_init(kernel_elf);
 	if(ret)
@@ -461,6 +454,13 @@ int main(int argc, char** argv) {
 	ret = mapping_memory();
 	if(ret)
 		return ret;
+
+	printf("\nCopying kernel image...\n");
+	ret = elf_copy(kernel_elf, kernel_start_address);
+	if(ret) {
+		printf("\tFailed to copy kernel image by kexec\n");
+		return ret;
+	}
 
 	printf("\nInitializing dummy entry\n");
 	ret = dummy_entry();

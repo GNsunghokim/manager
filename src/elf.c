@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -6,6 +7,8 @@
 #include <elf.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+
+#include "page.h"
 
 Elf64_Ehdr* ehdr;
 Elf64_Shdr* strtab;
@@ -57,6 +60,29 @@ int elf_load(char* elf_file) {
 	return 0;
 }
 
+bool copy_kernel(Elf64_Ehdr* ehdr) {
+	if(ehdr->e_ident[0] != ELFMAG0 || ehdr->e_ident[1] != ELFMAG1 || ehdr->e_ident[2] != ELFMAG2 || ehdr->e_ident[3] != ELFMAG3) {
+		return false;
+	}
+
+	Elf64_Shdr* shdr = (Elf64_Shdr*)((uint8_t*)ehdr + ehdr->e_shoff);
+	char* strs = (char*)ehdr + shdr[ehdr->e_shstrndx].sh_offset;
+
+	int t;
+	for(int i = 0; i < ehdr->e_shnum; i++) {
+		if(!shdr[i].sh_addr)
+			continue;
+
+		if(!strcmp(strs + shdr[i].sh_name, ".bss")) {
+			continue;
+		}
+
+		memcpy((void*)VIRTUAL_TO_PHYSICAL(shdr[i].sh_addr), (uint8_t*)ehdr + shdr[i].sh_offset, shdr[i].sh_size);
+	}
+
+	return true;
+}
+
 int elf_copy(char* elf_file, unsigned long kernel_start_address) {
 	int fd = open(elf_file, O_RDONLY);
 	if(fd < 0) {
@@ -64,11 +90,20 @@ int elf_copy(char* elf_file, unsigned long kernel_start_address) {
 		return -1;
 	}
 
-	char command[256];
-	sprintf(command, "kexec -a 0x%x -l %s -t elf-x86_64 --args-none >/dev/null 2>&1", 
-			kernel_start_address, elf_file);
-	printf("\tExecute command : %s\n", command);
-	return system(command);
+	off_t elf_size = lseek(fd, 0, SEEK_END);
+	char* addr = mmap(NULL, elf_size, PROT_READ, MAP_PRIVATE, fd, 0);
+	if(addr == MAP_FAILED) {
+		close(fd);
+		return -2;
+	}
+
+	//Clean Kernel
+	memset((void*)0x200000, 0, 0x600000);
+	copy_kernel((Elf64_Ehdr*)addr);
+	munmap(addr, elf_size);
+	close(fd);
+
+	return 0;
 }
 
 uint64_t elf_get_symbol(char* sym_name) {
